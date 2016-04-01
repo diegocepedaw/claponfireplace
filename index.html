@@ -1,0 +1,118 @@
+<html>
+<head>
+  <title>AudioPlayground</title>
+  <style>* {box-sizing: border-box;}
+		  body { 
+		  background: url("logfinal.png") no-repeat center center fixed; 
+		  -webkit-background-size: cover;
+		  -moz-background-size: cover;
+		  -o-background-size: cover;
+		  background-size: cover;
+		}
+  
+  </style>
+</head>
+<body>
+  
+  <
+  <audio id="myAudio">
+	  <source src="sexy.mp3" type="audio/mpeg">
+	  Your browser does not support the audio element.
+  </audio>
+
+  <script>
+	
+	
+    var Recording = function(cb){
+      var recorder = null;
+      var recording = true;
+      var audioInput = null;
+      var volume = null;
+      var audioContext = null;
+      var callback = cb;
+
+      navigator.getUserMedia = navigator.getUserMedia    || navigator.webkitGetUserMedia ||
+                               navigator.mozGetUserMedia || navigator.msGetUserMedia;
+
+      if(navigator.getUserMedia){
+        navigator.getUserMedia({audio:true},
+          function(e){ //success
+            var AudioContext = window.AudioContext || window.webkitAudioContext;
+            audioContext = new AudioContext();
+            volume = audioContext.createGain(); // creates a gain node
+            audioInput = audioContext.createMediaStreamSource(e); // creates an audio node from the mic stream
+            audioInput.connect(volume);// connect the stream to the gain node
+            recorder = audioContext.createScriptProcessor(1024, 1, 1);
+
+            recorder.onaudioprocess = function(e){
+                if(!recording) return;
+                var left = e.inputBuffer.getChannelData(0);
+                //var right = e.inputBuffer.getChannelData(1);
+                callback(new Float32Array(left));
+            };
+            volume.connect(recorder);// connect the recorder
+            recorder.connect(audioContext.destination);
+          },
+          function(e){ //failure
+            alert('Error capturing audio.');
+          }
+        );
+      } else {
+        alert('getUserMedia not supported in this browser.');
+      }
+    };
+	
+	var lastClap = 0;
+	var audioOn = 0;
+
+    function detectClap(data){
+	  var audio = document.getElementById("myAudio"); 
+	 
+      var zeroCrossings = 0, highAmp = 0;
+      for(var i = 1; i < data.length; i++){
+        if(Math.abs(data[i]) > 0.63) highAmp++; // TWEAK HERE
+        if(data[i] > 0 && data[i-1] < 0 || data[i] < 0 && data[i-1] > 0) zeroCrossings++;
+      }
+		var t = (new Date()).getTime();
+		
+		if(highAmp > 40 && zeroCrossings > 50 && (t - lastClap > 1500 || t - lastClap < 100)){
+			
+			lastClap = (new Date()).getTime();
+			console.log("clap difference: " + (t - lastClap));
+		}
+		else if (highAmp > 40 && zeroCrossings > 50){
+			lastClap = 0;
+			console.log("Clap on! "+ (t - lastClap));
+			if(audioOn == 0){
+				audio.play();
+				audioOn =1;
+				document.body.style.background = "url('sexyfire.gif') no-repeat center center fixed";
+				document.body.style.backgroundSize = "cover";
+			}
+			else{
+				audio.pause();
+				audioOn = 0;
+				document.body.style.background = "url('logfinal.png') no-repeat center center fixed";
+				document.body.style.backgroundSize = "cover";
+			}
+			
+			return highAmp > 40 && zeroCrossings > 50; // TWEAK HERE
+		
+		}
+		
+		console.log(highAmp);
+		return
+      
+    }
+
+    var rec = new Recording(function(data){
+      if(detectClap(data)){
+        console.log('clap!');
+        document.bgColor = 'rgb('+Math.random()*255+','+Math.random()*255+','+Math.random()*255+')';
+      }
+    });
+  </script>
+</body>
+</html>
+
+
